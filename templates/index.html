@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF/Text to Speech</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .container {
+        max-width: 800px;
+        position: relative;
+        justify-content: center;
+        text-align: center;
+      }
+      h1 {
+        margin-top: 100px;
+        margin-bottom: 30px;
+      }
+      select {
+        height: 32px;
+        margin-right: 20px;
+        color: gray;
+      }
+      .form-data {
+        margin: 10px;
+        position: relative;
+      }
+      p {
+        font-style: italic;
+        padding: 20px;
+        color: gray;
+      }
+      .msg-box {
+        height: 10px;
+      }
+      .errorMsg {
+        padding: 5px;
+        font-size: 12px;
+        color: red;
+      }
+      #textToSpeak {
+        width: 100%;
+        font-size: 20px;
+        line-height: 1.8;
+        color: #5e1278;
+        margin-top: 20px;
+        padding-top: 20px;
+        position: relative;
+        border: none;
+        outline: none;
+        resize: none;
+        overflow-y: auto;
+        background: #d4e0f3;
+        opacity: 0.4;
+        text-align: center;
+      }
+      .hidden {
+        display: none;
+      }
+      /* 
+      .greyOut {
+        opacity: 0.1;
+      } */
+    </style>
+  </head>
+
+  <body>
+    <div class="container mt-5">
+      <h1>Text to AI Voices Speech</h1>
+      <form
+        action="/text-to-speach"
+        method="POST"
+        enctype="multipart/form-data"
+        class="form-data"
+      >
+        <input
+          id="chooseFile"
+          type="file"
+          name="pdf"
+          accept="application/pdf"
+        />
+        <button id="extractBtn" type="submit" class="btn-secondary">
+          Extract
+        </button>
+      </form>
+
+      <select id="voiceSelect">
+        <option>--Select a voice--</option>
+      </select>
+
+      <button id="playBtn">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          class="bi bi-play-circle"
+          viewBox="0 0 16 16"
+        >
+          <path
+            d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"
+          ></path>
+          <path
+            d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445"
+          ></path>
+        </svg>
+      </button>
+
+      <button id="pauseBtn" class="hidden">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          class="bi bi-pause-circle"
+          viewBox="0 0 16 16"
+        >
+          <path
+            d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"
+          ></path>
+          <path
+            d="M5 6.25a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0zm3.5 0a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0z"
+          ></path>
+        </svg>
+      </button>
+
+      <div class="msg-box">
+        <p class="errorMsg hidden">
+          There's no content yet, please upload a file or type directly.
+        </p>
+      </div>
+
+      <textarea
+        id="textToSpeak"
+        rows="10"
+        language="{{ language }}"
+        placeholder="Upload a pdf file or type the contents directly here..."
+      >
+      {% if extracted_text %}{{ extracted_text }}{% endif %}
+      </textarea>
+    </div>
+    <script>
+      const voiceSelect = document.getElementById("voiceSelect");
+      const playBtn = document.getElementById("playBtn");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const errorMsg = document.querySelector(".errorMsg");
+      const textarea = document.getElementById("textToSpeak");
+
+      let language, selectedVoice, timeOut;
+      let currentText = "";
+      let sentences = [];
+      let currentIndex = 0;
+
+      // ----------------------------------------------------
+      // Load all available voices:
+      window.onload = function () {
+        populateVoiceList();
+      };
+
+      function populateVoiceList() {
+        const voices = responsiveVoice.getVoices();
+        voices.forEach(function (voice) {
+          const option = document.createElement("option");
+          option.value = voice.name;
+          option.innerHTML = voice.name;
+          voiceSelect.appendChild(option);
+        });
+
+        detectLanguage();
+      }
+
+      // Detect the text's language and choose a default voice automatically
+      function detectLanguage() {
+        language = textarea.getAttribute("language");
+        if (language === "zh-cn") {
+          voiceSelect.value = "Chinese Male";
+        } else if (language === "ja") {
+          voiceSelect.value = "Japanese Male";
+        } else if (language === "en") {
+          voiceSelect.value = "US English Male";
+        } else {
+          // Set a default voice when the result is "unknown":
+          voiceSelect.value = "US English Male";
+        }
+        selectedVoice = voiceSelect.value;
+      }
+
+      // Detect if the selected voice has been changed:
+      voiceSelect.addEventListener("change", function () {
+        // If isPlaying, cancel the current voice playing, reset the selected voice:
+        if (responsiveVoice.isPlaying()) {
+          responsiveVoice.cancel();
+          selectedVoice = voiceSelect.value;
+
+          // Continue to play from where paused:
+          playTextFromIndex(currentIndex);
+        }
+      });
+
+      // ----------------------------------------------------
+      playBtn.addEventListener("click", function () {
+        // Show error message when there's no content to be played:
+        if (textarea.value.trim() === "") {
+          errorMsg.classList.remove("hidden");
+          // Hide the error message after 5 secs:
+          timeOut = setTimeout(function () {
+            errorMsg.classList.add("hidden");
+          }, 5000);
+        } else {
+          currentText = textarea.value;
+          sentences = currentText
+            .split(/[.?!]/)
+            .filter((s) => s.trim().length > 0);
+          selectedVoice = voiceSelect.value;
+
+          if (responsiveVoice.isPlaying()) {
+            // If isPlaying, pause and record the place where played:
+            responsiveVoice.cancel();
+          } else {
+            // Continue to play from where paused:
+            playTextFromIndex(currentIndex);
+          }
+
+          // Show Pause Button
+          playBtn.classList.add("hidden");
+          pauseBtn.classList.remove("hidden");
+        }
+      });
+
+      function playTextFromIndex(index) {
+        console.log(`index: ${index}, length: ${sentences.length}`);
+        if (index < sentences.length) {
+          responsiveVoice.speak(sentences[index], selectedVoice, {
+            onend: function () {
+              // Move forward and play the next sentence:
+              currentIndex += 1;
+              playTextFromIndex(currentIndex);
+            },
+          });
+        } else {
+          // Reset text's current index and show play button:
+          console.log(`The next sentence: ${sentences[index]}`);
+          currentIndex = 0;
+          playBtn.classList.remove("hidden");
+          pauseBtn.classList.add("hidden");
+        }
+      }
+
+      // ----------------------------------------------------
+      pauseBtn.addEventListener("click", function () {
+        responsiveVoice.pause();
+        pauseBtn.classList.add("hidden");
+        playBtn.classList.remove("hidden");
+      });
+      // ----------------------------------------------------
+    </script>
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=065wo0HU"></script>
+  </body>
+</html>

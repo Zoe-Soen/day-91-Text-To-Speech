@@ -1,0 +1,51 @@
+.container {
+  max-width: 800px;
+  position: relative;
+  justify-content: center;
+  text-align: center;
+}
+h1 {
+  margin-top: 120px;
+}
+button {
+  outline: none;
+}
+select {
+  height: 32px;
+  margin-right: 20px;
+}
+.form-data {
+  margin: 10px;
+  position: relative;
+}
+p {
+  padding: 20px;
+  color: gray;
+}
+.errorMsg {
+  margin: auto;
+  color: red;
+}
+#textToSpeak {
+  width: 100%;
+  font-size: 18px;
+  line-height: 1.65;
+  color: #5e1278;
+  margin-top: 8px;
+  padding-left: 80px;
+  position: relative;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  background: #d4e0f3;
+  opacity: 0.4;
+  text-align: left;
+}
+.hidden {
+  display: none;
+}
+
+.greyOut {
+  opacity: 0.1;
+}
